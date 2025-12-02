@@ -168,7 +168,7 @@ Use `npm run dev` to test your script locally with mock data. Update `scripts/de
   "id": "grant-access-job-123",
   "type": "nodejs-20",
   "script": {
-    "repository": "github.com/sgnl/sailpoint-identity-now-grant-access",
+    "repository": "github.com/sgnl-actions/sailpoint-identity-now-grant-access",
     "version": "v1.0.0",
     "type": "nodejs"
   },
