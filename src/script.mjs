@@ -1,3 +1,5 @@
+import { getBaseUrl, getAuthorizationHeader } from '@sgnl-actions/utils';
+
 /**
  * SailPoint IdentityNow Grant Access Action
  *
@@ -9,18 +11,16 @@
  * Helper function to create an access request in SailPoint IdentityNow
  * @private
  */
-async function grantAccess(params, sailpointDomain, authToken) {
+async function grantAccess(params, baseUrl, authToken) {
   const {
     identityId,
     itemType,
     itemId,
     itemComment,
-    itemRemoveDate,
-    clientMetadata,
-    itemClientMetadata
+    itemRemoveDate
   } = params;
 
-  const url = new URL('/v3/access-requests', `https://${sailpointDomain}`);
+  const url = new URL('/v3/access-requests', baseUrl);
 
   // Build request body according to SailPoint API spec
   const requestBody = {
@@ -48,35 +48,11 @@ async function grantAccess(params, sailpointDomain, authToken) {
     }
   }
 
-  // Add optional item client metadata (should be a JSON string)
-  if (itemClientMetadata) {
-    try {
-      // Validate it's valid JSON by parsing
-      JSON.parse(itemClientMetadata);
-      requestBody.requestedItems[0].clientMetadata = itemClientMetadata;
-    } catch {
-      console.error('Invalid itemClientMetadata JSON string, skipping');
-    }
-  }
-
-  // Add optional request-level client metadata
-  if (clientMetadata) {
-    try {
-      // Validate it's valid JSON by parsing
-      JSON.parse(clientMetadata);
-      requestBody.clientMetadata = clientMetadata;
-    } catch {
-      console.error('Invalid clientMetadata JSON string, skipping');
-    }
-  }
-
-  // Ensure auth token has Bearer prefix
-  const authHeader = authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`;
-
+  // authToken is already formatted as a complete Authorization header value
   const response = await fetch(url.toString(), {
     method: 'POST',
     headers: {
-      'Authorization': authHeader,
+      'Authorization': authToken,
       'Accept': 'application/json',
       'Content-Type': 'application/json'
     },
@@ -90,20 +66,36 @@ async function grantAccess(params, sailpointDomain, authToken) {
 export default {
   /**
    * Main execution handler - creates an access request in SailPoint IdentityNow
-   * @param {Object} params - Job input parameters
-   * @param {string} params.identityId - The ID of the identity requesting access
-   * @param {string} params.itemType - Type of access item (ACCESS_PROFILE, ROLE, or ENTITLEMENT)
-   * @param {string} params.itemId - The ID of the access item to grant
-   * @param {string} params.sailpointDomain - The SailPoint IdentityNow tenant domain
+   * @param {Object} params - Input parameters
+   * @param {string} params.identityId - The ID of the identity requesting access (required)
+   * @param {string} params.itemType - Type of access item (ACCESS_PROFILE, ROLE, or ENTITLEMENT) (required)
+   * @param {string} params.itemId - The ID of the access item to grant (required)
    * @param {string} params.itemComment - Optional comment for the access request
+   * @param {string} params.address - Optional SailPoint IdentityNow base URL
    * @param {string} params.itemRemoveDate - Optional ISO 8601 date when access should be removed
-   * @param {string} params.clientMetadata - Optional JSON string of client metadata for the request
-   * @param {string} params.itemClientMetadata - Optional JSON string of client metadata for the item
-   * @param {Object} context - Execution context with env, secrets, outputs
-   * @returns {Object} Job results
+   *
+   * @param {Object} context - Execution context with secrets and environment
+   * @param {string} context.environment.ADDRESS - Default SailPoint IdentityNow API base URL
+   *
+   * The configured auth type will determine which of the following environment variables and secrets are available
+   * @param {string} context.secrets.BEARER_AUTH_TOKEN
+   *
+   * @param {string} context.secrets.BASIC_USERNAME
+   * @param {string} context.secrets.BASIC_PASSWORD
+   *
+   * @param {string} context.secrets.OAUTH2_CLIENT_CREDENTIALS_CLIENT_SECRET
+   * @param {string} context.environment.OAUTH2_CLIENT_CREDENTIALS_AUDIENCE
+   * @param {string} context.environment.OAUTH2_CLIENT_CREDENTIALS_AUTH_STYLE
+   * @param {string} context.environment.OAUTH2_CLIENT_CREDENTIALS_CLIENT_ID
+   * @param {string} context.environment.OAUTH2_CLIENT_CREDENTIALS_SCOPE
+   * @param {string} context.environment.OAUTH2_CLIENT_CREDENTIALS_TOKEN_URL
+   *
+   * @param {string} context.secrets.OAUTH2_AUTHORIZATION_CODE_ACCESS_TOKEN
+   *
+   * @returns {Promise<Object>} Action result
    */
   invoke: async (params, context) => {
-    const { identityId, itemType, itemId, sailpointDomain } = params;
+    const { identityId, itemType, itemId } = params;
 
     console.log(`Starting SailPoint IdentityNow access request for identity: ${identityId}`);
     console.log(`Requesting ${itemType}: ${itemId}`);
@@ -121,20 +113,18 @@ export default {
     if (!itemId || typeof itemId !== 'string') {
       throw new Error('Invalid or missing itemId parameter');
     }
-    if (!sailpointDomain || typeof sailpointDomain !== 'string') {
-      throw new Error('Invalid or missing sailpointDomain parameter');
-    }
 
-    // Validate SailPoint API token is present
-    if (!context.secrets?.SAILPOINT_API_TOKEN) {
-      throw new Error('Missing required secret: SAILPOINT_API_TOKEN');
-    }
+    // Get base URL using utility function
+    const baseUrl = getBaseUrl(params, context);
+
+    // Get authorization header
+    const authHeader = await getAuthorizationHeader(context);
 
     // Make the API request to create access request
     const response = await grantAccess(
       params,
-      sailpointDomain,
-      context.secrets.SAILPOINT_API_TOKEN
+      baseUrl,
+      authHeader
     );
 
     // Handle the response
@@ -183,84 +173,15 @@ export default {
   },
 
   /**
-   * Error recovery handler - attempts to recover from retryable errors
+   * Error recovery handler - re-throws errors to let framework handle retry logic
    * @param {Object} params - Original params plus error information
-   * @param {Object} context - Execution context
+   * @param {Object} _context - Execution context
    * @returns {Object} Recovery results
    */
-  error: async (params, context) => {
-    const { error, identityId, itemType, itemId, sailpointDomain } = params;
-    const statusCode = error.statusCode;
-
-    console.error(`Access request failed for identity ${identityId}: ${error.message}`);
-
-    // Get configurable backoff times from environment
-    const rateLimitBackoffMs = parseInt(context.environment?.RATE_LIMIT_BACKOFF_MS || '30000', 10);
-    const serviceErrorBackoffMs = parseInt(context.environment?.SERVICE_ERROR_BACKOFF_MS || '10000', 10);
-
-    // Handle rate limiting (429)
-    if (statusCode === 429 || error.message.includes('429') || error.message.includes('rate limit')) {
-      console.log(`Rate limited by SailPoint API - waiting ${rateLimitBackoffMs}ms before retry`);
-      await new Promise(resolve => setTimeout(resolve, rateLimitBackoffMs));
-
-      console.log(`Retrying access request for identity ${identityId} after rate limit backoff`);
-
-      // Retry the operation using helper function
-      const retryResponse = await grantAccess(
-        params,
-        sailpointDomain,
-        context.secrets.SAILPOINT_API_TOKEN
-      );
-
-      if (retryResponse.ok) {
-        const responseData = await retryResponse.json();
-        console.log(`Successfully created access request ${responseData.id} after retry`);
-
-        return {
-          requestId: responseData.id,
-          identityId: identityId,
-          itemType: itemType,
-          itemId: itemId,
-          status: responseData.status || 'PENDING',
-          requestedAt: new Date().toISOString(),
-          recoveryMethod: 'rate_limit_retry'
-        };
-      }
-    }
-
-    // Handle temporary service issues (502, 503, 504)
-    if ([502, 503, 504].includes(statusCode)) {
-      console.log(`SailPoint service temporarily unavailable - waiting ${serviceErrorBackoffMs}ms before retry`);
-      await new Promise(resolve => setTimeout(resolve, serviceErrorBackoffMs));
-
-      console.log(`Retrying access request for identity ${identityId} after service interruption`);
-
-      // Retry the operation using helper function
-      const retryResponse = await grantAccess(
-        params,
-        sailpointDomain,
-        context.secrets.SAILPOINT_API_TOKEN
-      );
-
-      if (retryResponse.ok) {
-        const responseData = await retryResponse.json();
-        console.log(`Successfully created access request ${responseData.id} after service recovery`);
-
-        return {
-          requestId: responseData.id,
-          identityId: identityId,
-          itemType: itemType,
-          itemId: itemId,
-          status: responseData.status || 'PENDING',
-          requestedAt: new Date().toISOString(),
-          recoveryMethod: 'service_retry'
-        };
-      }
-    }
-
-    // Cannot recover from this error
-    console.error(`Unable to recover from error for identity ${identityId}`);
-    throw new Error(`Unrecoverable error creating access request for identity ${identityId}: ${error.message}`);
+  error: async (params, _context) => {
+    const { error } = params;
+    // Re-throw error to let framework handle retry logic
+    throw error;
   },
 
   /**
