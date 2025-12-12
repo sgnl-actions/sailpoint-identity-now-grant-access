@@ -503,13 +503,13 @@ async function grantAccess(params, baseUrl, authToken) {
 var script = {
   /**
    * Main execution handler - creates an access request in SailPoint IdentityNow
-   * @param {Object} resolvedParams - Input parameters
-   * @param {string} resolvedParams.identityId - The ID of the identity requesting access (required)
-   * @param {string} resolvedParams.itemType - Type of access item (ACCESS_PROFILE, ROLE, or ENTITLEMENT) (required)
-   * @param {string} resolvedParams.itemId - The ID of the access item to grant (required)
-   * @param {string} resolvedParams.itemComment - Optional comment for the access request
-   * @param {string} resolvedParams.address - Optional SailPoint IdentityNow base URL
-   * @param {string} resolvedParams.itemRemoveDate - Optional ISO 8601 date when access should be removed
+   * @param {Object} params - Input parameters
+   * @param {string} params.identityId - The ID of the identity requesting access (required)
+   * @param {string} params.itemType - Type of access item (ACCESS_PROFILE, ROLE, or ENTITLEMENT) (required)
+   * @param {string} params.itemId - The ID of the access item to grant (required)
+   * @param {string} params.itemComment - Optional comment for the access request
+   * @param {string} params.address - Optional SailPoint IdentityNow base URL
+   * @param {string} params.itemRemoveDate - Optional ISO 8601 date when access should be removed
    *
    * @param {Object} context - Execution context with secrets and environment
    * @param {string} context.environment.ADDRESS - Default SailPoint IdentityNow API base URL
