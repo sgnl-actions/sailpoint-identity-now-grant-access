@@ -1,4 +1,4 @@
-import { getBaseUrl, getAuthorizationHeader } from '@sgnl-actions/utils';
+import { getBaseURL, getAuthorizationHeader, resolveJSONPathTemplates} from '@sgnl-actions/utils';
 
 /**
  * SailPoint IdentityNow Grant Access Action
@@ -66,13 +66,13 @@ async function grantAccess(params, baseUrl, authToken) {
 export default {
   /**
    * Main execution handler - creates an access request in SailPoint IdentityNow
-   * @param {Object} params - Input parameters
-   * @param {string} params.identityId - The ID of the identity requesting access (required)
-   * @param {string} params.itemType - Type of access item (ACCESS_PROFILE, ROLE, or ENTITLEMENT) (required)
-   * @param {string} params.itemId - The ID of the access item to grant (required)
-   * @param {string} params.itemComment - Optional comment for the access request
-   * @param {string} params.address - Optional SailPoint IdentityNow base URL
-   * @param {string} params.itemRemoveDate - Optional ISO 8601 date when access should be removed
+   * @param {Object} resolvedParams - Input parameters
+   * @param {string} resolvedParams.identityId - The ID of the identity requesting access (required)
+   * @param {string} resolvedParams.itemType - Type of access item (ACCESS_PROFILE, ROLE, or ENTITLEMENT) (required)
+   * @param {string} resolvedParams.itemId - The ID of the access item to grant (required)
+   * @param {string} resolvedParams.itemComment - Optional comment for the access request
+   * @param {string} resolvedParams.address - Optional SailPoint IdentityNow base URL
+   * @param {string} resolvedParams.itemRemoveDate - Optional ISO 8601 date when access should be removed
    *
    * @param {Object} context - Execution context with secrets and environment
    * @param {string} context.environment.ADDRESS - Default SailPoint IdentityNow API base URL
@@ -95,7 +95,15 @@ export default {
    * @returns {Promise<Object>} Action result
    */
   invoke: async (params, context) => {
-    const { identityId, itemType, itemId } = params;
+    const jobContext = context.data || {};
+
+    // Resolve JSONPath templates in params
+    const { result: resolvedParams, errors } = resolveJSONPathTemplates(params, jobContext);
+    if (errors.length > 0) {
+     console.warn('Template resolution errors:', errors);
+    }
+
+    const { identityId, itemType, itemId } = resolvedParams;
 
     console.log(`Starting SailPoint IdentityNow access request for identity: ${identityId}`);
     console.log(`Requesting ${itemType}: ${itemId}`);
@@ -105,14 +113,14 @@ export default {
     }
 
     // Get base URL using utility function
-    const baseUrl = getBaseUrl(params, context);
+    const baseUrl = getBaseURL(resolvedParams, context);
 
     // Get authorization header
     const authHeader = await getAuthorizationHeader(context);
 
     // Make the API request to create access request
     const response = await grantAccess(
-      params,
+      resolvedParams,
       baseUrl,
       authHeader
     );
