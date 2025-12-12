@@ -100,6 +100,10 @@ export default {
     console.log(`Starting SailPoint IdentityNow access request for identity: ${identityId}`);
     console.log(`Requesting ${itemType}: ${itemId}`);
 
+    if (!['ACCESS_PROFILE', 'ROLE', 'ENTITLEMENT'].includes(itemType)) {
+      throw new Error('itemType must be ACCESS_PROFILE, ROLE, or ENTITLEMENT');
+    }
+
     // Get base URL using utility function
     const baseUrl = getBaseUrl(params, context);
 
