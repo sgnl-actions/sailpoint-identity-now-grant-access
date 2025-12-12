@@ -100,18 +100,8 @@ export default {
     console.log(`Starting SailPoint IdentityNow access request for identity: ${identityId}`);
     console.log(`Requesting ${itemType}: ${itemId}`);
 
-    // Validate required inputs
-    if (!identityId || typeof identityId !== 'string') {
-      throw new Error('Invalid or missing identityId parameter');
-    }
-    if (!itemType || typeof itemType !== 'string') {
-      throw new Error('Invalid or missing itemType parameter');
-    }
     if (!['ACCESS_PROFILE', 'ROLE', 'ENTITLEMENT'].includes(itemType)) {
       throw new Error('itemType must be ACCESS_PROFILE, ROLE, or ENTITLEMENT');
-    }
-    if (!itemId || typeof itemId !== 'string') {
-      throw new Error('Invalid or missing itemId parameter');
     }
 
     // Get base URL using utility function
@@ -139,7 +129,8 @@ export default {
         itemType: itemType,
         itemId: itemId,
         status: responseData.status || 'PENDING',
-        requestedAt: new Date().toISOString()
+        requestedAt: new Date().toISOString(),
+        address: baseUrl
       };
     }
 
