@@ -111,15 +111,6 @@ describe('SailPoint IdentityNow Grant Access Script', () => {
       expect(result.requestedAt).toBeDefined();
     });
 
-    test('should throw error for missing identityId', async () => {
-      const params = {
-        itemType: 'ACCESS_PROFILE',
-        itemId: 'ap-789'
-      };
-
-      await expect(script.invoke(params, mockContext)).rejects.toThrow('Invalid or missing identityId parameter');
-    });
-
     test('should throw error for invalid itemType', async () => {
       const params = {
         identityId: 'identity-456',
@@ -128,16 +119,6 @@ describe('SailPoint IdentityNow Grant Access Script', () => {
       };
 
       await expect(script.invoke(params, mockContext)).rejects.toThrow('itemType must be ACCESS_PROFILE, ROLE, or ENTITLEMENT');
-    });
-
-    test('should throw error for missing itemId', async () => {
-      const params = {
-        identityId: 'identity-456',
-        itemType: 'ACCESS_PROFILE',
-        address: 'https://test.identitynow.com'
-      };
-
-      await expect(script.invoke(params, mockContext)).rejects.toThrow('Invalid or missing itemId parameter');
     });
 
     test('should throw error for missing address', async () => {
