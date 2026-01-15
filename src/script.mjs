@@ -17,7 +17,9 @@ async function grantAccess(params, baseUrl, authToken) {
     itemType,
     itemId,
     itemComment,
-    itemRemoveDate
+    itemRemoveDate,
+    clientMetadata,
+    itemClientMetadata
   } = params;
 
   const url = `${baseUrl}/v3/access-requests`;
@@ -34,9 +36,19 @@ async function grantAccess(params, baseUrl, authToken) {
     ]
   };
 
+  // Add optional client metadata at request level
+  if (clientMetadata) {
+    requestBody.clientMetadata = clientMetadata;
+  }
+
   // Add optional item comment
   if (itemComment) {
     requestBody.requestedItems[0].comment = itemComment;
+  }
+
+  // Add optional item client metadata
+  if (itemClientMetadata) {
+    requestBody.requestedItems[0].clientMetadata = itemClientMetadata;
   }
 
   // Add optional remove date (must be in RFC3339 format)
@@ -73,6 +85,8 @@ export default {
    * @param {string} params.itemComment - Optional comment for the access request
    * @param {string} params.address - Optional SailPoint IdentityNow base URL
    * @param {string} params.itemRemoveDate - Optional ISO 8601 date when access should be removed
+   * @param {string} params.clientMetadata - Optional arbitrary key-value pairs as JSON string
+   * @param {string} params.itemClientMetadata - Optional arbitrary key-value pairs as JSON string
    *
    * @param {Object} context - Execution context with secrets and environment
    * @param {string} context.environment.ADDRESS - Default SailPoint IdentityNow API base URL
