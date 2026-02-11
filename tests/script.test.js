@@ -37,7 +37,7 @@ describe('SailPoint IdentityNow Grant Access Script', () => {
         }]
       })
     });
-    
+
     // Set up global mocks
     global.fetch = fetchMock;
     global.URL = originalURL || class {
@@ -48,7 +48,7 @@ describe('SailPoint IdentityNow Grant Access Script', () => {
         return this.href;
       }
     };
-    
+
     // Mock console to avoid noise in tests
     global.console.log = () => {};
     global.console.error = () => {};
@@ -108,7 +108,7 @@ describe('SailPoint IdentityNow Grant Access Script', () => {
 
       expect(result.requestId).toBe('request-123');
       expect(result.requestedAt).toBeDefined();
-      
+
       // Basic verification that result is returned with comment
       // Note: Without jest.fn() we can't verify request details
     });
@@ -228,9 +228,9 @@ describe('SailPoint IdentityNow Grant Access Script', () => {
       const params = {
         identityId: 'identity-456'
       };
-      
+
       const result = await script.halt(params, mockContext);
-      
+
       expect(result.cleanupCompleted).toBe(true);
       expect(result.haltedAt).toBeDefined();
     });
