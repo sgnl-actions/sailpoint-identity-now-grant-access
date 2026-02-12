@@ -9,6 +9,11 @@
  */
 
 /**
+ * User-Agent header value for all SGNL CAEP Hub requests.
+ */
+const SGNL_USER_AGENT = 'SGNL-CAEP-Hub/2.0';
+
+/**
  * Get OAuth2 access token using client credentials flow
  * @param {Object} config - OAuth2 configuration
  * @param {string} config.tokenUrl - Token endpoint URL
@@ -39,7 +44,8 @@ async function getClientCredentialsToken(config) {
 
   const headers = {
     'Content-Type': 'application/x-www-form-urlencoded',
-    'Accept': 'application/json'
+    'Accept': 'application/json',
+    'User-Agent': SGNL_USER_AGENT
   };
 
   if (authStyle === 'InParams') {
@@ -158,6 +164,21 @@ function getBaseURL(params, context) {
 }
 
 /**
+ * Create full headers object with Authorization and common headers
+ * @param {Object} context - Execution context with env and secrets
+ * @returns {Promise<Object>} Headers object with Authorization, Accept, Content-Type
+ */
+async function createAuthHeaders(context) {
+  const authHeader = await getAuthorizationHeader(context);
+  return {
+    'Authorization': authHeader,
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'User-Agent': SGNL_USER_AGENT
+  };
+}
+
+/**
  * SailPoint IdentityNow Grant Access Action
  *
  * Creates an access request in SailPoint IdentityNow to grant access to roles,
@@ -168,7 +189,7 @@ function getBaseURL(params, context) {
  * Helper function to create an access request in SailPoint IdentityNow
  * @private
  */
-async function grantAccess(params, baseUrl, authToken) {
+async function grantAccess(params, baseUrl, headers) {
   const {
     identityId,
     itemType,
@@ -220,11 +241,7 @@ async function grantAccess(params, baseUrl, authToken) {
   // authToken is already formatted as a complete Authorization header value
   const response = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Authorization': authToken,
-      'Accept': 'application/json',
-      'Content-Type': 'application/json'
-    },
+    headers,
     body: JSON.stringify(requestBody)
   });
 
@@ -278,14 +295,14 @@ var script = {
     // Get base URL using utility function
     const baseUrl = getBaseURL(params, context);
 
-    // Get authorization header
-    const authHeader = await getAuthorizationHeader(context);
+    // Get authorization headers
+    const headers = await createAuthHeaders(context);
 
     // Make the API request to create access request
     const response = await grantAccess(
       params,
       baseUrl,
-      authHeader
+      headers
     );
 
     // Handle the response

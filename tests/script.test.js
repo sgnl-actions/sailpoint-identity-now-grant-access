@@ -1,4 +1,5 @@
 import script from '../src/script.mjs';
+import { SGNL_USER_AGENT } from '@sgnl-actions/utils';
 
 describe('SailPoint IdentityNow Grant Access Script', () => {
   const mockContext = {
@@ -67,6 +68,20 @@ describe('SailPoint IdentityNow Grant Access Script', () => {
         itemId: 'ap-789'
       };
 
+      let capturedOptions;
+      global.fetch = (url, options) => {
+        capturedOptions = options;
+        return Promise.resolve({
+          ok: true,
+          status: 202,
+          json: async () => ({
+            id: 'request-123',
+            requestedFor: [{ id: 'identity-456' }],
+            requestedItems: [{ id: 'item-789', type: 'ACCESS_PROFILE', name: 'Test Access Profile' }]
+          })
+        });
+      };
+
       const result = await script.invoke(params, mockContext);
 
       expect(result.requestId).toBe('request-123');
@@ -75,6 +90,7 @@ describe('SailPoint IdentityNow Grant Access Script', () => {
       expect(result.itemId).toBe('ap-789');
       expect(result.status).toBe('PENDING');
       expect(result.requestedAt).toBeDefined();
+      expect(capturedOptions.headers['User-Agent']).toBe(SGNL_USER_AGENT);
       
       // Basic verification that result is returned
       // Note: Without jest.fn() we can't verify call details
