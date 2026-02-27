@@ -1,4 +1,4 @@
-import { getBaseURL, createAuthHeaders } from '@sgnl-actions/utils';
+import { getBaseURL, createHeaders } from '@sgnl-actions/utils';
 
 /**
  * SailPoint IdentityNow Grant Access Action
@@ -118,7 +118,7 @@ export default {
     const baseUrl = getBaseURL(params, context);
 
     // Get authorization headers
-    const headers = await createAuthHeaders(context);
+    const headers = await createHeaders(context);
 
     // Make the API request to create access request
     const response = await grantAccess(
